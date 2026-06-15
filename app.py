@@ -10,7 +10,7 @@ DATASET_DIR = "dataset"
 os.makedirs(DATASET_DIR, exist_ok=True)
 
 # 1. VEB-SAYTNING UMUMIY FRONTEND STRUKTURASI VA DIZAYNI (CSS)
-st.set_page_config(page_title="Premium Yuz Tanish Tizimi", layout="centered")
+st.set_page_config(page_title="Premium Yuz Tanish Tizimi", layout="centered", page_icon="👤")
 
 # Maxsus UI/UX dizayn (CSS o'rnatish)
 st.markdown("""
@@ -73,10 +73,14 @@ st.markdown("""
         background: linear-gradient(135deg, #0077e6 0%, #1e90ff 100%) !important;
     }
     
-    /* O'chirish tugmasi uchun qizil rang */
-    div[data-testid="stVerticalBlock"] > div:nth-child(2) div.stButton > button {
+    /* O'chirish tugmasi uchun o'ziga xos qizil rang stillari */
+    .delete-container div.stButton > button {
         background: linear-gradient(135deg, #ff4b4b 0%, #bf1f1f 100%) !important;
         box-shadow: 0 4px 12px rgba(255, 75, 75, 0.3) !important;
+    }
+    .delete-container div.stButton > button:hover {
+        background: linear-gradient(135deg, #bf1f1f 0%, #ff4b4b 100%) !important;
+        box-shadow: 0 6px 20px rgba(255, 75, 75, 0.5) !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -85,7 +89,7 @@ st.markdown("""
 st.markdown("<h1 class='main-title'>👤 AI FACE RECOGNITION SYSTEM</h1>", unsafe_allow_html=True)
 st.markdown("<p class='sub-title'>Sun'iy intellektga asoslangan yuzni aniqlash va dataset boshqaruv tizimi</p>", unsafe_allow_html=True)
 
-# Yon panel navigatsiyasi (Endi 3 ta sahifa bor)
+# Yon panel navigatsiyasi
 st.sidebar.markdown("<h2 style='text-align:center; color:#1e90ff;'>🧭 MENYU</h2>", unsafe_allow_html=True)
 page = st.sidebar.radio("Kerakli sahifani tanlang:", ["📥 Dataset Yozuvchi", "📦 Dataset Ro'yxati", "🔍 Main (Yuz Tanish)"])
 
@@ -120,6 +124,9 @@ if page == "📥 Dataset Yozuvchi":
         else:
             with st.spinner("Yuz tahlil qilinmoqda, iltimos kuting..."):
                 image = Image.open(uploaded_file)
+                # Rasmni RGB formatiga o'tkazish (face_recognition talabi)
+                if image.mode != "RGB":
+                    image = image.convert("RGB")
                 image_np = np.array(image)
                 
                 # Biometrik yuz kodini olish
@@ -134,13 +141,13 @@ if page == "📥 Dataset Yozuvchi":
                     final_path = os.path.join(DATASET_DIR, f"{person_name}_{count}.npy")
                     np.save(final_path, encodings[0])
                     
-                    st.balloons() # Ekrandan chiroyli sharlar uchib chiqadi
+                    st.balloons() # Muvaffaqiyatli yakun effekti
                     st.success(f"🎉 Muvaffaqiyatli! '{person_name}' tizim bazasiga qo'shildi. Fayl: {person_name}_{count}.npy")
                 else:
                     st.error("❌ Xatolik: Yuklangan rasmdan yuz aniqlanmadi! Yuz aniq ko'ringan rasmdan foydalaning.")
 
 # ==============================================================================
-# 2-SAHIFA: DATASET RO'YXATI (YANGI QO'SHILGAN SAHIFA)
+# 2-SAHIFA: DATASET RO'YXATI
 # ==============================================================================
 elif page == "📦 Dataset Ro'yxati":
     st.markdown("""
@@ -151,7 +158,6 @@ elif page == "📦 Dataset Ro'yxati":
         </div>
         """, unsafe_allow_html=True)
     
-    # Papkadagi barcha .npy fayllarni qidirish
     all_files = [f for f in os.listdir(DATASET_DIR) if f.endswith('.npy')]
     
     if len(all_files) == 0:
@@ -159,28 +165,28 @@ elif page == "📦 Dataset Ro'yxati":
     else:
         st.subheader(f"📊 Jami andozalar soni: {len(all_files)} ta")
         
-        # Chiroyli jadval ko'rinishida chiqarish uchun ma'lumot yig'ish
         display_list = []
         for index, filename in enumerate(all_files, start=1):
             name_part = filename.split('_')[0]
             display_list.append({"T/r": index, "Inson Ismi": name_part, "Fayl Nomi": filename})
             
-        # Jadvalni ekranga chiqarish
         st.table(display_list)
         
         st.markdown("---")
         st.subheader("🗑️ Ma'lumotni o'chirish")
         
-        # O'chirish uchun faylni tanlash menyusi
         file_to_delete = st.selectbox("O'chirmoqchi bo'lgan andozani tanlang:", all_files)
         
+        # O'chirish tugmasi qizil bo'lishi uchun maxsus konteynerga o'raymiz
+        st.markdown("<div class='delete-container'>", unsafe_allow_html=True)
         if st.button("❌ BAZADAN O'CHIRISH"):
             try:
                 os.remove(os.path.join(DATASET_DIR, file_to_delete))
                 st.success(f"🗑️ '{file_to_delete}' fayli bazadan butunlay o'chirib tashlandi!")
-                st.rerun() # Sahifani yangilash (fayl ro'yxatdan yo'qolishi uchun)
+                st.rerun() # Sahifani xavfsiz qayta yuklash
             except Exception as e:
                 st.error(f"Xatolik yuz berdi: {e}")
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # ==============================================================================
 # 3-SAHIFA: MAIN (YUZ TANISH)
@@ -194,7 +200,6 @@ elif page == "🔍 Main (Yuz Tanish)":
         </div>
         """, unsafe_allow_html=True)
     
-    # .npy bazasini yuklash
     known_encodings = []
     known_names = []
     
@@ -209,17 +214,18 @@ elif page == "🔍 Main (Yuz Tanish)":
     if len(known_names) == 0:
         st.warning("⚠️ Diqqat: Tizim bazasi hozircha bo'sh! Avval 'Dataset Yozuvchi' sahifasida insonlarni qo'shing.")
     else:
-        # Mini status-bar
         st.markdown(f"""
             <div style='background-color:#111625; padding:10px; border-radius:8px; margin-bottom:15px; text-align:center;'>
-                🟢 <span style='color:#00ff7f; font-weight:bold;'>Tizim Holati: Aktif</span> | 📦 Bazadagi jami andozalar: <b>{len(known_names)} ta</b>
+                🟢 <span style='color:#00ff7f; font-weight:bold;'>Tizim Holati: Aktiv</span> | 📦 Bazadagi jami andozalar: <b>{len(known_names)} ta</b>
             </div>
             """, unsafe_allow_html=True)
             
-        test_file = st.file_uploader("🖼️ Tekshirish uchun istalgan yeni rasmni yuklang:", type=["jpg", "jpeg", "png"])
+        test_file = st.file_uploader("🖼️ Tekshirish uchun istalgan yangi rasmni yuklang:", type=["jpg", "jpeg", "png"])
         
         if test_file:
             image = Image.open(test_file)
+            if image.mode != "RGB":
+                image = image.convert("RGB")
             image_np = np.array(image)
             display_img = image_np.copy()
             
@@ -240,10 +246,10 @@ elif page == "🔍 Main (Yuz Tanish)":
                             if matches[best_match_index]:
                                 name = known_names[best_match_index]
                         
-                        # Neon effekti bilan to'rtburchak chizish
+                        # Ranglar tartibini tekshirish (OpenCV standart RGB da chizadi)
                         cv2.rectangle(display_img, (left, top), (right, bottom), (0, 255, 127), 4)
                         cv2.rectangle(display_img, (left, top - 35), (right, top), (0, 255, 127), cv2.FILLED)
-                        cv2.putText(display_img, name, (left + 6, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2, cv2.LINE_AA)
+                        cv2.putText(display_img, name, (left + 6, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
                     
                     st.markdown("### 📊 Skanerlash Natijasi:")
                     st.image(display_img, caption="AI Skanerlandi", use_container_width=True)
